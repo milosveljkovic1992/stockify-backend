@@ -1,0 +1,29 @@
+{
+	"name": "stockify-backend",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"start": "nodemon index.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/milosveljkovic1992/stockify-backend.git"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/milosveljkovic1992/stockify-backend/issues"
+	},
+	"homepage": "https://github.com/milosveljkovic1992/stockify-backend#readme",
+	"dependencies": {
+		"bcrypt": "^5.1.0",
+		"dotenv": "^16.0.3",
+		"express": "^4.18.2",
+		"express-validator": "^6.14.2",
+		"jsonwebtoken": "^9.0.0",
+		"nodemon": "^2.0.20"
+	}
+}
+
