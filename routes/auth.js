@@ -65,16 +65,76 @@ router.post('/signup', [
 
     // Save tokens to cookies
     res.cookie('jwtAccess', accessToken, {
-      httpOnly: true,
       maxAge: 1000 * 10
     });
 
     res.cookie("jwtRefresh", refreshToken, {
       httpOnly: true,
-      maxAge: oneDayInMiliseconds,
+      maxAge: oneDayInMiliseconds
     });
 
     res.status(201).send(user);
+  } catch (error) {
+    return res.status(500).json({
+      errors: [{ msg: 'Error occured. Please try again' }]
+    });
+  }
+});
+
+router.post('/login', [
+  check('username', 'Username must be at least 4 characters long').isLength(4),
+  check('password', 'Password must be at least 6 characters long').isLength(6)
+], async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        errors: errors.array()
+      });
+    }
+
+    // Check if username exists in database
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json({
+        errors: [{ msg: 'Incorrect username or password' }]
+      });
+    }
+
+    // Check is password correct
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({
+        errors: [{ msg: 'Incorrect username or password' }]
+      })
+    }
+
+    // Create tokens
+    const accessToken = await jwt.sign(
+      { username, id: user._id, admin: false },
+      jwtAccessKey,
+      { algorithm: 'HS256', expiresIn: '10s' }
+    );
+
+    const refreshToken = await jwt.sign(
+      { username, id: user._id, admin: false },
+      jwtRefreshKey,
+      { algorithm: 'HS256', expiresIn: '24h' }
+    );
+
+    // Save tokens to cookies
+    res.cookie('jwtAccess', accessToken, {
+      maxAge: 1000 * 10
+    });
+
+    res.cookie("jwtRefresh", refreshToken, {
+      httpOnly: true,
+      maxAge: oneDayInMiliseconds
+    });
+
+    res.status(200).send(user)
   } catch (error) {
     return res.status(500).json({
       errors: [{ msg: 'Error occured. Please try again' }]
@@ -86,7 +146,8 @@ router.post('/signup', [
 router.get('/logout', (req, res) => {
   res.clearCookie('jwtAccess');
   res.clearCookie('jwtRefresh');
+  res.clearCookie('_uid');
   res.status(200).send('You have successfully logged out!');
-})
+});
 
 module.exports = router;
