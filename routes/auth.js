@@ -6,14 +6,22 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const User = require('../models/user.model');
+const Token = require('../models/token.model');
 
-const jwtAccessKey = process.env.JWT_ACCESS_KEY
-const jwtRefreshKey = process.env.JWT_REFRESH_KEY
+const jwtAccessKey = process.env.JWT_ACCESS_KEY;
+const jwtRefreshKey = process.env.JWT_REFRESH_KEY;
 
 const oneDayInMiliseconds = 1000 * 60 * 60 * 24;
 
-// SIGN UP
-router.post('/signup', [
+const roles = Object.freeze({
+  ADMIN: "ADMIN",
+  USER: "USER"
+});
+
+/******************
+ *    REGISTER    *
+ ******************/
+router.post('/register', [
   check('username', 'Username must be at least 3 characters long').isLength(4),
   check('email', 'Invalid email address').isEmail(),
   check('password', 'Password must be at least 6 characters long').isLength(6)
@@ -47,7 +55,8 @@ router.post('/signup', [
     const user = await User.create({
       username,
       email: email.toLowerCase(),
-      password: encryptedPassword
+      password: encryptedPassword,
+      role: roles.USER
     });
 
     // Create tokens
@@ -63,6 +72,9 @@ router.post('/signup', [
       { algorithm: 'HS256', expiresIn: '24h' }
     );
 
+    // Save refresh token in database
+    await Token.create({ token: refreshToken });
+
     // Save tokens to cookies
     res.cookie('jwtAccess', accessToken, {
       maxAge: 1000 * 10
@@ -73,7 +85,12 @@ router.post('/signup', [
       maxAge: oneDayInMiliseconds
     });
 
-    res.status(201).send(user);
+    res.status(201).send({
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      _id: user._id
+    });
   } catch (error) {
     return res.status(500).json({
       errors: [{ msg: 'Error occured. Please try again' }]
@@ -81,6 +98,9 @@ router.post('/signup', [
   }
 });
 
+/*******************
+ *      LOGIN      *
+ *******************/
 router.post('/login', [
   check('username', 'Username must be at least 4 characters long').isLength(4),
   check('password', 'Password must be at least 6 characters long').isLength(6)
@@ -108,21 +128,32 @@ router.post('/login', [
     if (!isPasswordValid) {
       return res.status(400).json({
         errors: [{ msg: 'Incorrect username or password' }]
-      })
+      });
     }
+
+    // Remove existing refresh token to prevent database bloating
+    const oldRefreshToken = req.cookies['jwtRefresh'];
+    if (oldRefreshToken) {
+      await Token.deleteOne({ token: oldRefreshToken });
+    }
+
+    const isAdmin = user.role === roles.ADMIN;
 
     // Create tokens
     const accessToken = await jwt.sign(
-      { username, id: user._id, admin: false },
+      { username, id: user._id, admin: isAdmin },
       jwtAccessKey,
       { algorithm: 'HS256', expiresIn: '10s' }
     );
 
     const refreshToken = await jwt.sign(
-      { username, id: user._id, admin: false },
+      { username, id: user._id, admin: isAdmin },
       jwtRefreshKey,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
+
+    // Save refresh token in database
+    await Token.create({ token: refreshToken });
 
     // Save tokens to cookies
     res.cookie('jwtAccess', accessToken, {
@@ -134,7 +165,12 @@ router.post('/login', [
       maxAge: oneDayInMiliseconds
     });
 
-    res.status(200).send(user)
+    res.status(200).send({
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      _id: user._id
+    });
   } catch (error) {
     return res.status(500).json({
       errors: [{ msg: 'Error occured. Please try again' }]
@@ -142,11 +178,60 @@ router.post('/login', [
   }
 });
 
-// Clear tokens from cookies
-router.get('/logout', (req, res) => {
+/*****************************
+ *    CREATE ACCESS TOKEN    *
+ *****************************/
+router.post('/token', async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    res.status(401).json({
+      errors: [{ msg: 'Token not found' }]
+    });
+    return;
+  }
+
+  const { token } = await Token.findOne({ token: refreshToken });
+  if (!token) {
+    res.status(403).json({
+      errors: [{ msg: 'Invalid token' }]
+    });
+    return;
+  }
+
+  try {
+    const user = jwt.verify(token, jwtRefreshKey);
+    const { username } = user;
+    const isAdmin = user.role === roles.ADMIN;
+
+    // Create access token
+    const accessToken = await jwt.sign(
+      { username, id: user._id, admin: isAdmin },
+      jwtAccessKey,
+      { expiresIn: '10s' }
+    );
+
+    // Save access token to cookies
+    res.cookie('jwtAccess', accessToken, {
+      maxAge: 1000 * 10
+    });
+
+    res.status(200).json({ accessToken });
+  } catch (error) {
+    res.status(403).json({
+      errors: [{ msg: 'Invalid token' }]
+    });
+  }
+});
+
+/*****************
+ *     LOGOUT    *
+ *****************/
+router.get('/logout', async (req, res) => {
+  const oldRefreshToken = req.cookies['jwtRefresh'];
+  await Token.deleteOne({ token: oldRefreshToken });
+
   res.clearCookie('jwtAccess');
   res.clearCookie('jwtRefresh');
-  res.clearCookie('_uid');
   res.status(200).send('You have successfully logged out!');
 });
 
