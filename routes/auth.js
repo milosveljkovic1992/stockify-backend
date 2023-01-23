@@ -31,22 +31,29 @@ router.post('/register', [
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-      return res.status(400).json({
+      res.status(400).json({
         errors: errors.array()
       });
+      return;
     }
 
     // Check for duplicate users
     const usernameExists = await User.exists({ username });
     const emailExists = await User.exists({ email: email.toLowerCase() });
 
-    if (usernameExists) return res.status(409).json({
-      errors: [{ msg: 'Username already registered' }]
-    });
+    if (usernameExists) {
+      res.status(409).json({
+        errors: [{ msg: 'Username already registered' }]
+      });
+      return;
+    }
 
-    if (emailExists) return res.status(409).json({
-      errors: [{ msg: 'Email already registered' }]
-    });
+    if (emailExists) {
+      res.status(409).json({
+        errors: [{ msg: 'Email already registered' }]
+      });
+      return;
+    }
 
     // Encrypt password
     const encryptedPassword = await bcrypt.hash(password, 10);
@@ -61,19 +68,19 @@ router.post('/register', [
 
     // Create tokens
     const accessToken = await jwt.sign(
-      { username, id: user._id, admin: false },
+      { username, uid: user._id, admin: false },
       jwtAccessKey,
       { algorithm: 'HS256', expiresIn: '10s' }
     );
 
     const refreshToken = await jwt.sign(
-      { username, id: user._id, admin: false },
+      { username, uid: user._id, admin: false },
       jwtRefreshKey,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
 
     // Save refresh token in database
-    await Token.create({ token: refreshToken });
+    await Token.create({ token: refreshToken, uid: user._id });
 
     // Save tokens to cookies
     res.cookie('jwtAccess', accessToken, {
@@ -92,9 +99,10 @@ router.post('/register', [
       _id: user._id
     });
   } catch (error) {
-    return res.status(500).json({
+    res.status(500).json({
       errors: [{ msg: 'Error occured. Please try again' }]
     });
+    return;
   }
 });
 
@@ -110,25 +118,28 @@ router.post('/login', [
     const errors = validationResult(req);
 
     if (!errors.isEmpty()) {
-      return res.status(400).json({
+      res.status(400).json({
         errors: errors.array()
       });
+      return;
     }
 
     // Check if username exists in database
     const user = await User.findOne({ username });
     if (!user) {
-      return res.status(400).json({
+      res.status(400).json({
         errors: [{ msg: 'Incorrect username or password' }]
       });
+      return;
     }
 
     // Check is password correct
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(400).json({
+      res.status(400).json({
         errors: [{ msg: 'Incorrect username or password' }]
       });
+      return;
     }
 
     // Remove existing refresh token to prevent database bloating
@@ -141,19 +152,19 @@ router.post('/login', [
 
     // Create tokens
     const accessToken = await jwt.sign(
-      { username, id: user._id, admin: isAdmin },
+      { username, uid: user._id, admin: isAdmin },
       jwtAccessKey,
       { algorithm: 'HS256', expiresIn: '10s' }
     );
 
     const refreshToken = await jwt.sign(
-      { username, id: user._id, admin: isAdmin },
+      { username, uid: user._id, admin: isAdmin },
       jwtRefreshKey,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
 
     // Save refresh token in database
-    await Token.create({ token: refreshToken });
+    await Token.create({ token: refreshToken, uid: user._id });
 
     // Save tokens to cookies
     res.cookie('jwtAccess', accessToken, {
@@ -172,9 +183,106 @@ router.post('/login', [
       _id: user._id
     });
   } catch (error) {
-    return res.status(500).json({
+    res.status(500).json({
       errors: [{ msg: 'Error occured. Please try again' }]
     });
+    return;
+  }
+});
+
+/********************************************************
+ *    REAUTHORIZE by USER ID saved in client cookies    *
+ ********************************************************/
+router.post('/reauth', async (req, res) => {
+  try {
+    const { _id } = req.body;
+    // Check if user exists in database
+    const user = await User.findOne({ _id });
+
+    if (!user) {
+      res.status(200).json({
+        errors: [{ msg: 'Could not sign you in' }]
+      });
+      return;
+    }
+    console.log(user.username);
+
+    // Check if refresh token exists in cookies
+    const oldRefreshToken = req.cookies['jwtRefresh'];
+    if (!oldRefreshToken) {
+      res.status(200).json({
+        errors: [{ msg: 'Could not sign you in' }]
+      });
+      return;
+    }
+
+    try {
+      await Token.findOne({ uid: _id });
+    } catch (error) {
+      res.status(403).json({
+        errors: [{ msg: 'Invalid token' }]
+      });
+      return;
+    }
+
+    // Check if refresh token is still valid
+    try {
+      await jwt.verify(oldRefreshToken, jwtRefreshKey);
+    } catch (error) {
+      res.status(403).json({
+        errors: [{ msg: 'Invalid token' }]
+      });
+    }
+
+    const isAdmin = user.role === roles.ADMIN;
+    const { username } = user;
+    // Create tokens
+    const accessToken = await jwt.sign(
+      { username, uid: user._id, admin: isAdmin },
+      jwtAccessKey,
+      { algorithm: 'HS256', expiresIn: '10s' }
+    );
+
+    const refreshToken = await jwt.sign(
+      { username, uid: user._id, admin: isAdmin },
+      jwtRefreshKey,
+      { algorithm: 'HS256', expiresIn: '24h' }
+    );
+
+    // REMOVE OLD and SAVE NEW token to database
+    try {
+      await Token.deleteOne({ token: oldRefreshToken });
+      await Token.create({ token: refreshToken, uid: user._id });
+    } catch (error) {
+      res.status(403).json({
+        errors: [{ msg: 'Invalid token' }]
+      });
+      return;
+    }
+
+    // Save tokens to cookies
+    res.cookie('jwtAccess', accessToken, {
+      maxAge: 1000 * 10
+    });
+
+    res.cookie("jwtRefresh", refreshToken, {
+      httpOnly: true,
+      maxAge: oneDayInMiliseconds
+    });
+
+    console.log('274 user');
+    console.log(user);
+    res.status(200).send({
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      _id: user._id
+    });
+  } catch (error) {
+    res.status(500).json({
+      errors: [{ msg: 'Error occured. Please try again' }]
+    });
+    return;
   }
 });
 
@@ -205,7 +313,7 @@ router.post('/token', async (req, res) => {
 
     // Create access token
     const accessToken = await jwt.sign(
-      { username, id: user._id, admin: isAdmin },
+      { username, uid: user._id, admin: isAdmin },
       jwtAccessKey,
       { expiresIn: '10s' }
     );
