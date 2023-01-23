@@ -205,7 +205,6 @@ router.post('/reauth', async (req, res) => {
       });
       return;
     }
-    console.log(user.username);
 
     // Check if refresh token exists in cookies
     const oldRefreshToken = req.cookies['jwtRefresh'];
@@ -270,8 +269,6 @@ router.post('/reauth', async (req, res) => {
       maxAge: oneDayInMiliseconds
     });
 
-    console.log('274 user');
-    console.log(user);
     res.status(200).send({
       username: user.username,
       email: user.email,
