@@ -4,6 +4,8 @@ const { check, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const cookieParser = require("cookie-parser");
+router.use(cookieParser());
 
 const User = require('../models/user.model');
 const Token = require('../models/token.model');
@@ -127,7 +129,7 @@ router.post('/login', [
     // Check if username exists in database
     const user = await User.findOne({ username });
     if (!user) {
-      res.status(400).json({
+      res.status(401).json({
         errors: [{ msg: 'Incorrect username or password' }]
       });
       return;
@@ -136,7 +138,7 @@ router.post('/login', [
     // Check is password correct
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      res.status(400).json({
+      res.status(401).json({
         errors: [{ msg: 'Incorrect username or password' }]
       });
       return;
@@ -200,7 +202,7 @@ router.post('/reauth', async (req, res) => {
     const user = await User.findOne({ _id });
 
     if (!user) {
-      res.status(200).json({
+      res.status(304).json({
         errors: [{ msg: 'Could not sign you in' }]
       });
       return;
@@ -209,7 +211,7 @@ router.post('/reauth', async (req, res) => {
     // Check if refresh token exists in cookies
     const oldRefreshToken = req.cookies['jwtRefresh'];
     if (!oldRefreshToken) {
-      res.status(200).json({
+      res.status(304).json({
         errors: [{ msg: 'Could not sign you in' }]
       });
       return;
@@ -218,8 +220,8 @@ router.post('/reauth', async (req, res) => {
     try {
       await Token.findOne({ uid: _id });
     } catch (error) {
-      res.status(403).json({
-        errors: [{ msg: 'Invalid token' }]
+      res.status(498).json({
+        errors: [{ msg: 'Invalid token. Please log in again.' }]
       });
       return;
     }
@@ -228,8 +230,8 @@ router.post('/reauth', async (req, res) => {
     try {
       await jwt.verify(oldRefreshToken, jwtRefreshKey);
     } catch (error) {
-      res.status(403).json({
-        errors: [{ msg: 'Invalid token' }]
+      res.status(498).json({
+        errors: [{ msg: 'Invalid token. Please log in again.' }]
       });
     }
 
@@ -253,8 +255,8 @@ router.post('/reauth', async (req, res) => {
       await Token.deleteOne({ token: oldRefreshToken });
       await Token.create({ token: refreshToken, uid: user._id });
     } catch (error) {
-      res.status(403).json({
-        errors: [{ msg: 'Invalid token' }]
+      res.status(400).json({
+        errors: [{ msg: 'Could not sign you in. Please log in again.' }]
       });
       return;
     }
