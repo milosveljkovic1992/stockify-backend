@@ -4,8 +4,6 @@ const { check, validationResult } = require('express-validator');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
-const cookieParser = require("cookie-parser");
-router.use(cookieParser());
 
 const User = require('../models/user.model');
 const Token = require('../models/token.model');
