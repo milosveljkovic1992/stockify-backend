@@ -29,6 +29,13 @@ router.post('/register', [
   check('password', 'Password must be at least 6 characters long').isLength(6)
 ], async (req, res) => {
   try {
+    const oldRefreshToken = req.cookies['jwtRefresh'];
+    if (oldRefreshToken) {
+      await Token.deleteOne({ token: oldRefreshToken });
+      res.clearCookie('jwtAccess');
+      res.clearCookie('jwtRefresh');
+    }
+
     const { username, email, password } = req.body;
     const errors = validationResult(req);
 
