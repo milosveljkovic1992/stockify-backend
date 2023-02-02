@@ -5,7 +5,7 @@ const authenticateToken = require('./middleware/authenticateToken');
 require('dotenv').config();
 
 const PORT = process.env.API_PORT;
-const warehouseURL = process.env.MONGO_WAREHOUSE_URL;
+const authURL = process.env.MONGO_AUTH_URL;
 const mongoose = require('mongoose');
 
 const app = express();
@@ -22,7 +22,7 @@ app.use('/private', authenticateToken, require('./routes/private'));
 mongoose.set("strictQuery", false);
 
 mongoose
-  .connect(warehouseURL)
+  .connect(authURL)
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server is listening on port ${PORT}`);
