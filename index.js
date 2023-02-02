@@ -21,14 +21,6 @@ app.use('/private', authenticateToken, require('./routes/private'));
 
 mongoose.set("strictQuery", false);
 
-mongoose
-  .connect(authURL)
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Server is listening on port ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.log('Database connection failed. Server not started.');
-    console.error(err);
-  });
+app.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
