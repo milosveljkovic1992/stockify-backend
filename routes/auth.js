@@ -293,8 +293,9 @@ router.post('/reauth', async (req, res) => {
 /*****************************
  *    CREATE ACCESS TOKEN    *
  *****************************/
-router.post('/token', async (req, res) => {
-  const { refreshToken } = req.body;
+router.get('/token', async (req, res) => {
+  const refreshToken = req.headers.authorization.replace('Bearer ', '');
+
   if (!refreshToken) {
     res.status(401).json({
       errors: [{ msg: 'Token not found' }]
@@ -321,11 +322,6 @@ router.post('/token', async (req, res) => {
       jwtAccessKey,
       { expiresIn: '10s' }
     );
-
-    // Save access token to cookies
-    res.cookie('jwtAccess', accessToken, {
-      maxAge: 1000 * 10
-    });
 
     res.status(200).json({ accessToken });
   } catch (error) {

@@ -5,7 +5,6 @@ const authenticateToken = require('./middleware/authenticateToken');
 require('dotenv').config();
 
 const PORT = process.env.API_PORT;
-const authURL = process.env.MONGO_AUTH_URL;
 const mongoose = require('mongoose');
 
 const app = express();
