@@ -21,4 +21,23 @@ router.post('/dispatched', async (req, res) => {
   }
 });
 
+router.delete('/remove', async (req, res) => {
+  try {
+    const { id } = req.body;
+    const truck = await Truck.findByIdAndDelete(id);
+    if (!truck) {
+      res.status(404).json({
+        errors: [{ msg: 'Truck not found' }]
+      });
+      return;
+    }
+
+    res.status(200).send('Truck removed')
+  } catch (error) {
+    res.status(500).json({
+      errors: [{ msg: 'Something went wrong' }]
+    });
+  }
+});
+
 module.exports = router;
