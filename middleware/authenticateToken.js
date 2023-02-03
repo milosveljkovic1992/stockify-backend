@@ -17,7 +17,9 @@ const authenticateToken = async (req, res, next) => {
   let token = req.cookies['jwtAccess'];
   if (!token) {
     try {
-      const { data } = await axios.post('http://localhost:5000/auth/token', { refreshToken });
+      const { data } = await axios.get('http://localhost:5000/auth/token', {
+        headers: { 'Authorization': `Bearer ${refreshToken}` },
+      });
       const { accessToken } = data;
       token = accessToken;
     } catch (error) {
@@ -29,6 +31,9 @@ const authenticateToken = async (req, res, next) => {
   // Verify access token before proceeding
   try {
     const user = jwt.verify(token, jwtAccessKey);
+    res.cookie('jwtAccess', token, {
+      maxAge: 1000 * 10
+    });
     req.username = user.username;
     next();
   } catch (error) {
