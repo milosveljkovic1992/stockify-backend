@@ -5,7 +5,7 @@ require('dotenv').config();
 
 const Truck = require('../models/truck.model');
 
-router.post('/dispatched', async (req, res) => {
+router.post('/dispatch', async (req, res) => {
   try {
     const refreshToken = req.cookies['jwtRefresh'];
     const { uid } = jwt.decode(refreshToken);
@@ -21,9 +21,10 @@ router.post('/dispatched', async (req, res) => {
   }
 });
 
-router.delete('/remove', async (req, res) => {
+router.delete('/delete/:id', async (req, res) => {
   try {
-    const { id } = req.body;
+    const { id } = req.params;
+
     const truck = await Truck.findByIdAndDelete(id);
     if (!truck) {
       res.status(404).json({
