@@ -16,6 +16,7 @@ app.use(cors({
 }));
 
 app.use('/auth', require('./routes/auth'));
+app.use('/truck', authenticateToken, require('./routes/truck'));
 app.use('/private', authenticateToken, require('./routes/private'));
 
 mongoose.set("strictQuery", false);
