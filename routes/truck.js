@@ -21,6 +21,19 @@ router.post('/dispatch', async (req, res) => {
   }
 });
 
+router.get('/find/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const trucks = await Truck.find({ uid });
+
+    res.status(200).json(trucks);
+  } catch (error) {
+    res.status(500).json({
+      errors: [{ msg: 'Something went wrong' }]
+    });
+  }
+});
+
 router.delete('/delete/:id', async (req, res) => {
   try {
     const { id } = req.params;
