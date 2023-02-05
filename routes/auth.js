@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const User = require('../models/user.model');
-const Token = require('../models/token.model');
 
 const jwtAccessKey = process.env.JWT_ACCESS_KEY;
 const jwtRefreshKey = process.env.JWT_REFRESH_KEY;
@@ -29,7 +28,6 @@ router.post('/register', [
   try {
     const oldRefreshToken = req.cookies['jwtRefresh'];
     if (oldRefreshToken) {
-      await Token.deleteOne({ token: oldRefreshToken });
       res.clearCookie('jwtAccess');
       res.clearCookie('jwtRefresh');
     }
@@ -85,9 +83,6 @@ router.post('/register', [
       jwtRefreshKey,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
-
-    // Save refresh token in database
-    await Token.create({ token: refreshToken, uid: user._id });
 
     // Save tokens to cookies
     res.cookie('jwtAccess', accessToken, {
@@ -149,12 +144,6 @@ router.post('/login', [
       return;
     }
 
-    // Remove existing refresh token to prevent database bloating
-    const oldRefreshToken = req.cookies['jwtRefresh'];
-    if (oldRefreshToken) {
-      await Token.deleteOne({ token: oldRefreshToken });
-    }
-
     const isAdmin = user.role === roles.ADMIN;
 
     // Create tokens
@@ -169,9 +158,6 @@ router.post('/login', [
       jwtRefreshKey,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
-
-    // Save refresh token in database
-    await Token.create({ token: refreshToken, uid: user._id });
 
     // Save tokens to cookies
     res.cookie('jwtAccess', accessToken, {
@@ -222,15 +208,6 @@ router.post('/reauth', async (req, res) => {
       return;
     }
 
-    try {
-      await Token.findOne({ uid: _id });
-    } catch (error) {
-      res.status(498).json({
-        errors: [{ msg: 'Invalid token. Please log in again.' }]
-      });
-      return;
-    }
-
     // Check if refresh token is still valid
     try {
       await jwt.verify(oldRefreshToken, jwtRefreshKey);
@@ -238,6 +215,7 @@ router.post('/reauth', async (req, res) => {
       res.status(498).json({
         errors: [{ msg: 'Invalid token. Please log in again.' }]
       });
+      return;
     }
 
     const isAdmin = user.role === roles.ADMIN;
@@ -254,17 +232,6 @@ router.post('/reauth', async (req, res) => {
       jwtRefreshKey,
       { algorithm: 'HS256', expiresIn: '24h' }
     );
-
-    // REMOVE OLD and SAVE NEW token to database
-    try {
-      await Token.deleteOne({ token: oldRefreshToken });
-      await Token.create({ token: refreshToken, uid: user._id });
-    } catch (error) {
-      res.status(400).json({
-        errors: [{ msg: 'Could not sign you in. Please log in again.' }]
-      });
-      return;
-    }
 
     // Save tokens to cookies
     res.cookie('jwtAccess', accessToken, {
@@ -303,16 +270,8 @@ router.get('/token', async (req, res) => {
     return;
   }
 
-  const { token } = await Token.findOne({ token: refreshToken });
-  if (!token) {
-    res.status(403).json({
-      errors: [{ msg: 'Invalid token' }]
-    });
-    return;
-  }
-
   try {
-    const user = jwt.verify(token, jwtRefreshKey);
+    const user = jwt.verify(refreshToken, jwtRefreshKey);
     const { username } = user;
     const isAdmin = user.role === roles.ADMIN;
 
@@ -335,9 +294,6 @@ router.get('/token', async (req, res) => {
  *     LOGOUT    *
  *****************/
 router.get('/logout', async (req, res) => {
-  const oldRefreshToken = req.cookies['jwtRefresh'];
-  await Token.deleteOne({ token: oldRefreshToken });
-
   res.clearCookie('jwtAccess');
   res.clearCookie('jwtRefresh');
   res.status(200).send('You have successfully logged out!');
