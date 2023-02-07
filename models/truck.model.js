@@ -5,12 +5,10 @@ const conn = mongoose.createConnection(trucksURL);
 
 const truckSchema = mongoose.Schema({
   uid: { type: String },
-  parameters: {
-    origin: { type: String },
-    destination: { type: String },
-    weight: { type: Number },
-    length: { type: Number },
-  },
+  origin: { type: String },
+  destination: { type: String },
+  weight: { type: Number },
+  length: { type: Number },
   expireAt: {
     type: Date,
     default: getFutureDate(5)

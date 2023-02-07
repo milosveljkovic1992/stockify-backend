@@ -11,9 +11,9 @@ router.post('/dispatch', async (req, res) => {
     const { uid } = jwt.decode(refreshToken);
     const { origin, destination, weight, length } = req.body;
 
-    const { id: _id, parameters } = await Truck.create({ uid, parameters: { origin, destination, weight, length } });
+    const truck = await Truck.create({ uid, origin, destination, weight, length });
 
-    res.status(201).send({ _id, ...parameters });
+    res.status(201).send(truck);
   } catch (error) {
     res.status(500).json({
       errors: [{ msg: 'Error occured. Please try again' }]
@@ -21,7 +21,20 @@ router.post('/dispatch', async (req, res) => {
   }
 });
 
-router.delete('/delete/:id', async (req, res) => {
+router.get('/find/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const trucks = await Truck.find({ uid });
+
+    res.status(200).json(trucks);
+  } catch (error) {
+    res.status(500).json({
+      errors: [{ msg: 'Something went wrong' }]
+    });
+  }
+});
+
+router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
