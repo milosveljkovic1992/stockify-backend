@@ -4,19 +4,43 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const Truck = require('../models/truck.model');
+const { getFutureDate } = require('../utils/getFutureDate');
 
 router.post('/dispatch', async (req, res) => {
   try {
-    const refreshToken = req.cookies['jwtRefresh'];
-    const { uid } = jwt.decode(refreshToken);
-    const { origin, destination, weight, length } = req.body;
-
+    const { uid, origin, destination, weight, length } = req.body;
     const truck = await Truck.create({ uid, origin, destination, weight, length });
 
     res.status(201).send(truck);
   } catch (error) {
     res.status(500).json({
       errors: [{ msg: 'Error occured. Please try again' }]
+    });
+  }
+});
+
+router.put('/update/:_id', async (req, res) => {
+  try {
+    const { _id } = req.params;
+    const { truck } = req.body;
+
+    try {
+      const updatedTruck = await Truck.findOneAndUpdate(
+        { _id },
+        { ...truck, expireAt: getFutureDate(5) },
+        { new: true }
+      );
+      res.status(200).send(updatedTruck);
+    } catch (error) {
+      res.status(404).json({
+        errors: [{ msg: 'Truck not found. Please try again.' }]
+      });
+      return;
+    }
+
+  } catch (error) {
+    res.status(500).json({
+      errors: [{ msg: 'Something went wrong ' }]
     });
   }
 });
