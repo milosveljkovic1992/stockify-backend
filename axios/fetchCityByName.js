@@ -7,7 +7,7 @@ const fetchCityByName = async (name) => {
   const where = encodeURIComponent(
     JSON.stringify({
       name: {
-        $regex: `${name}`,
+        $regex: `${name.charAt(0).toUpperCase().concat(name.slice(1))}`,
       },
     }),
   );
