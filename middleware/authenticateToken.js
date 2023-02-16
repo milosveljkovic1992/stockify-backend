@@ -13,19 +13,23 @@ const authenticateToken = async (req, res, next) => {
     return
   }
 
-  // If there is no access token, generate token
-  let token = req.cookies['jwtAccess'];
-  if (!token) {
+  const createAccessToken = async () => {
     try {
       const { data } = await axios.get('http://localhost:5000/auth/token', {
         headers: { 'Authorization': `Bearer ${refreshToken}` },
       });
       const { accessToken } = data;
-      token = accessToken;
+      return accessToken;
     } catch (error) {
       res.send(error.response.data);
       return
     }
+  }
+
+  // If there is no access token, generate token
+  let token = req.cookies['jwtAccess'];
+  if (!token) {
+    token = await createAccessToken();
   }
 
   // Verify access token before proceeding
@@ -37,9 +41,20 @@ const authenticateToken = async (req, res, next) => {
     req.username = user.username;
     next();
   } catch (error) {
-    res.status(403).json({
-      errors: [{ msg: 'Invalid token' }]
-    });
+    // if token has expired in meantime, try issuing another or throw an error
+    try {
+      token = await createAccessToken();
+      const user = jwt.verify(token, jwtAccessKey);
+      res.cookie('jwtAccess', token, {
+        maxAge: 1000 * 10
+      });
+      req.username = user.username;
+      next();
+    } catch (error) {
+      res.status(403).json({
+        errors: [{ msg: 'Invalid token' }]
+      });
+    }
   }
 };
 
