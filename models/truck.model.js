@@ -5,8 +5,29 @@ const conn = mongoose.createConnection(trucksURL);
 
 const truckSchema = mongoose.Schema({
   uid: { type: String },
-  origin: { type: String },
-  destination: { type: String },
+  origin: {
+    adminCode: { type: String },
+    cityId: { type: Number },
+    country: {
+      code: { type: String },
+      name: { type: String },
+      objectId: { type: String }
+    },
+    name: { type: String },
+    objectId: { type: String }
+  },
+  destination: {
+    adminCode: { type: String },
+    cityId: { type: Number },
+    country: {
+      code: { type: String },
+      name: { type: String },
+      objectId: { type: String }
+    },
+    name: { type: String },
+    objectId: { type: String }
+  },
+  distance: { type: Number },
   weight: { type: Number },
   length: { type: Number },
   expireAt: {
