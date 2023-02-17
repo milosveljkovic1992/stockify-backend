@@ -33,7 +33,7 @@ router.get('/city/:name', async (req, res) => {
           const { results } = await fetchCountryByCode(country);
           if (results.length) {
             const [fetchedCountry] = results;
-            await Country.create(fetchedCountry);
+            Country.create(fetchedCountry);
             locationsCache.set(country.toUpperCase(), fetchedCountry);
             objectId = fetchedCountry.objectId;
           }
