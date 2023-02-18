@@ -8,8 +8,7 @@ const { getFutureDate } = require('../utils/getFutureDate');
 
 router.post('/dispatch', async (req, res) => {
   try {
-    const { uid, origin, destination, distance, weight, length } = req.body;
-    const truck = await Truck.create({ uid, origin, destination, distance, weight, length });
+    const truck = await Truck.create({ ...req.body });
 
     res.status(201).send(truck);
   } catch (error) {
