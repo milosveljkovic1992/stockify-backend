@@ -30,6 +30,7 @@ const truckSchema = mongoose.Schema({
   distance: { type: Number },
   weight: { type: Number },
   length: { type: Number },
+  truck: { type: String },
   expireAt: {
     type: Date,
     default: getFutureDate(5)
