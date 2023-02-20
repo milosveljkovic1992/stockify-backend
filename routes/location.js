@@ -9,12 +9,12 @@ router.get('/city/:name', async (req, res) => {
 
     if (country && country.length === 2) {
       const countries = require('../countries');
-      const countryFound = countries.find(item => item.code === country.toUpperCase());
+      const targetCountry = countries[country.toUpperCase()];
 
       // if country exists
-      if (countryFound.objectId) {
+      if (targetCountry.objectId) {
         const fetchCityByNameAndCountry = require('../axios/fetchCityByNameAndCountry');
-        const { results } = await fetchCityByNameAndCountry(name, countryFound.objectId);
+        const { results } = await fetchCityByNameAndCountry(name, targetCountry.objectId);
 
         // check for duplicates and keep only newer input
         const filteredResults = results.reduce((acc, curr) => {
