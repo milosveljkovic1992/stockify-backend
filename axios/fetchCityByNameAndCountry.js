@@ -10,12 +10,15 @@ const fetchCityByNameAndCountry = async (name, countryId) => {
       "__type": "Pointer",
       "className": "Country",
       "objectId": `${countryId}`
+    },
+    "population": {
+      "$gt": 0
     }
   }));
 
   try {
     const { data } = await axios(
-      `https://parseapi.back4app.com/classes/Continentscountriescities_City?limit=5&include=country&keys=name,country,country.name,country.code,cityId,adminCode&where=${where}`,
+      `https://parseapi.back4app.com/classes/Continentscountriescities_City?limit=5&include=country&keys=name,country,country.name,country.code,population,location,cityId,adminCode&where=${where}`,
       {
         headers: {
           'X-Parse-Application-Id': xParseApplicationId,
