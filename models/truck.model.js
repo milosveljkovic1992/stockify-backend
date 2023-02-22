@@ -27,7 +27,6 @@ const truckSchema = mongoose.Schema({
     name: { type: String },
     objectId: { type: String }
   },
-  distance: { type: Number },
   weight: { type: Number },
   length: { type: Number },
   truck: { type: String },
